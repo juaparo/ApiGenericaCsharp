@@ -18,3 +18,11 @@ Thumbs.db
 .env
 appsettings.Development.json
 
+# Configuración de VS Code
+.vscode/
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+# Archivos de entorno
+.env
+appsettings.Development.json
