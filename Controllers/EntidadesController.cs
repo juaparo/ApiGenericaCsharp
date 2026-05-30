@@ -1308,6 +1308,53 @@ namespace ApiGenericaCsharp.Controllers
             }
         }
 
+        /// <summary>
+        /// Endpoint auxiliar para restablecer contraseñas sin autenticación (durante recuperación).
+        /// 
+        /// Ruta: POST /api/{tabla}/restablecer-contrasena
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("restablecer-contrasena")]
+        public async Task<IActionResult> RestablecerContrasenaAsync(
+            string tabla,
+            [FromBody] Dictionary<string, string> datos,
+            [FromQuery] string? esquema = null
+        )
+        {
+            try
+            {
+                if (!datos.ContainsKey("campoUsuario") || !datos.ContainsKey("valorUsuario") || 
+                    !datos.ContainsKey("campoContrasena") || !datos.ContainsKey("nuevaContrasena"))
+                {
+                    return BadRequest(new { estado = 400, mensaje = "Faltan parámetros requeridos para el restablecimiento." });
+                }
+
+                string campoUsuario = datos["campoUsuario"];
+                string valorUsuario = datos["valorUsuario"];
+                string campoContrasena = datos["campoContrasena"];
+                string nuevaContrasena = datos["nuevaContrasena"];
+
+                var datosActualizar = new Dictionary<string, object?> { { campoContrasena, nuevaContrasena } };
+
+                int filasAfectadas = await _servicioCrud.ActualizarAsync(
+                    tabla, esquema, campoUsuario, valorUsuario, datosActualizar, campoContrasena
+                );
+
+                if (filasAfectadas > 0)
+                {
+                    _logger.LogInformation("Contraseña restablecida exitosamente para el usuario {Usuario} en tabla {Tabla}", valorUsuario, tabla);
+                    return Ok(new { estado = 200, mensaje = "Contraseña restablecida correctamente." });
+                }
+                
+                return NotFound(new { estado = 404, mensaje = "No se encontró el usuario para restablecer la contraseña." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error crítico al restablecer contraseña en tabla {Tabla}", tabla);
+                return StatusCode(500, new { estado = 500, mensaje = "Error interno al restablecer contraseña.", detalle = ex.Message });
+            }
+        }
+
         // aquí se puede agregar más endpoints en el futuro (DELETE, PATCH, etc.)
 
     }
