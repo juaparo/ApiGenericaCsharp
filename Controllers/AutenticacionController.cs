@@ -15,6 +15,7 @@
 // IMPORTACIONES NECESARIAS
 // ---------------------------------------------------------
 using Microsoft.AspNetCore.Mvc;                      // Para el controlador y las acciones
+using Microsoft.AspNetCore.Authorization;            // Para el atributo [AllowAnonymous]
 using Microsoft.Extensions.Options;                  // Para inyectar configuraciones (IOptions)
 using Microsoft.IdentityModel.Tokens;                // Para firmar y generar el token JWT
 using System.IdentityModel.Tokens.Jwt;               // Para manipular JWT
@@ -150,6 +151,46 @@ namespace ApiGenericaCsharp.Controllers
                 expiracion = token.ValidTo
             });
         }
+
+        // ---------------------------------------------------------
+        // POST: /api/autenticacion/registro
+        // Descripción:
+        //   - Registra un nuevo usuario en la tabla especificada.
+        //   - Permite acceso anónimo para poder crear el primer usuario.
+        // ---------------------------------------------------------
+        [AllowAnonymous]
+        [HttpPost("registro")]
+        public async Task<IActionResult> RegistrarUsuario([FromBody] RegistroGenerico registro)
+        {
+            if (string.IsNullOrWhiteSpace(registro.Tabla) || registro.Datos == null || !registro.Datos.Any())
+            {
+                return BadRequest(new { estado = 400, mensaje = "Debe enviar la tabla y los datos del usuario." });
+            }
+
+            try
+            {
+                // Se delega la creación al ServicioCrud que ya maneja BCrypt si se le pasan los campos a encriptar
+                bool creado = await _servicioCrud.CrearAsync(
+                    registro.Tabla,
+                    null, // Esquema opcional
+                    registro.Datos,
+                    registro.CamposEncriptar
+                );
+
+                if (creado)
+                {
+                    return Ok(new { estado = 200, mensaje = "Usuario registrado exitosamente." });
+                }
+                else
+                {
+                    return StatusCode(500, new { estado = 500, mensaje = "No se pudo registrar el usuario." });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { estado = 500, mensaje = "Error interno durante el registro.", detalle = ex.Message });
+            }
+        }
     }
 
     // ---------------------------------------------------------
@@ -174,6 +215,16 @@ namespace ApiGenericaCsharp.Controllers
 
         // Contraseña enviada por el usuario (texto plano para comparar con hash en BD)
         public string Contrasena { get; set; } = string.Empty;
+    }
+
+    // ---------------------------------------------------------
+    // CLASE AUXILIAR: RegistroGenerico
+    // ---------------------------------------------------------
+    public class RegistroGenerico
+    {
+        public string Tabla { get; set; } = string.Empty;
+        public Dictionary<string, object?> Datos { get; set; } = new Dictionary<string, object?>();
+        public string? CamposEncriptar { get; set; }
     }
 }
 
